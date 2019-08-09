@@ -2,6 +2,7 @@ import glob
 import torch
 import torch.nn as nn
 from nets import senet
+from nets import pnasnet
 from configs import hyperparameters
 
 #from nets.senet import se_resnext101_32x4d
@@ -9,6 +10,7 @@ from configs import hyperparameters
 network_fn_map = {
     'senet154': senet.senet154,
     'se_resnext101': senet.se_resnext101_32x4d
+    'pnasnet': pnasnet.pnasnet5large
 }
 
 

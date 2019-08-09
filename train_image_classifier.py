@@ -16,7 +16,7 @@ from configs import hyperparameters
 
 
 
-network_fn, resume = nets_factory.get_network_function('senet154')
+network_fn, resume = nets_factory.get_network_function('pnasnet')
 epoch = 1
 
 #load exisiting checkpoint
@@ -41,8 +41,9 @@ if resume:
 criterion = nn.CrossEntropyLoss(weight=torch.tensor([1.0000, 0.3512, 1.3608, 5.2157, 
                                 1.7233, 18.9205, 17.8735, 7.2006],device='cuda'))
 
-
-scheduler = lr_scheduler.StepLR(optimizer, step_size=hyperparameters.num_epochs_per_decay, gamma=hyperparameters.gamma)
+#try cyclic LR in PNASnet?
+#scheduler = lr_scheduler.StepLR(optimizer, step_size=hyperparameters.num_epochs_per_decay, gamma=hyperparameters.gamma)
+scheduler = lr_scheduler.CyclicLR(optimizer, base_lr=0., max_lr=0.01,step_size_up=797)
 
 photo_filenames, photo_labels, class_names = get_filenames_and_labels()
 validation_filenames, validation_labels = get_validation_filenames_and_labels(hyperparameters.validation_per_class)
@@ -119,7 +120,8 @@ for epoch in range(epoch, hyperparameters.max_epochs+1):
         loss = criterion(output, label.long())
         loss.backward()
         optimizer.step()
-
+        #cyclical_LR
+        scheduler.step()
         running_loss += loss.item()
 
         #calculate batch loss per 528 batchs, 3 times per epoch
@@ -128,7 +130,8 @@ for epoch in range(epoch, hyperparameters.max_epochs+1):
             (epoch, batch_i + 1, running_loss / 528))
             running_loss = 0.0
     
-    scheduler.step()
+    #step_LR        
+    #scheduler.step()
 
     if (epoch-1) % hyperparameters.num_epochs_per_eval == 0 and epoch > 1:
         acc_history.append(eval_model())
