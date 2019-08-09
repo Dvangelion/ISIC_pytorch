@@ -16,16 +16,32 @@ from configs import hyperparameters
 
 
 
-network_fn = nets_factory.get_network_function('senet154')
-network_fn.last_linear = nn.Linear(network_fn.last_linear.in_features, hyperparameters.num_classes)
+network_fn, resume = nets_factory.get_network_function('senet154')
+epoch = 1
+
+#load exisiting checkpoint
+if resume:
+    ckpt_list = glob.glob('./models/*.tar')
+    ckpt_list.sort(key=lambda x:int(x[-11:-9]))
+    checkpoint = torch.load(ckpt_list[-1])
+    network_fn.load_state_dict(checkpoint['model_state_dict'])
+    epoch = checkpoint['epoch']
+    loss = checkpoint['loss']
+    #acc_history = checkpoint['acc_history']
+
 
 network_fn = network_fn.cuda()
 
-#criterion = nn.BCEWithLogitsLoss()
-criterion = nn.CrossEntropyLoss(weight=torch.tensor([1.0000, 0.3512, 1.3608, 5.2157, 
-                                    1.7233, 18.9205, 17.8735, 7.2006],device='cuda'))
-
+#network_fn need to allocate to gpu before defining optimizer
 optimizer = optim.Adam(network_fn.parameters(), lr=hyperparameters.initial_learning_rate)
+if resume:
+    optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+
+
+criterion = nn.CrossEntropyLoss(weight=torch.tensor([1.0000, 0.3512, 1.3608, 5.2157, 
+                                1.7233, 18.9205, 17.8735, 7.2006],device='cuda'))
+
+
 scheduler = lr_scheduler.StepLR(optimizer, step_size=hyperparameters.num_epochs_per_decay, gamma=hyperparameters.gamma)
 
 photo_filenames, photo_labels, class_names = get_filenames_and_labels()
@@ -42,9 +58,10 @@ train_loader = DataLoader(train_dataloader, batch_size=hyperparameters.batch_siz
 validation_dataloader = ISICDataLoader(validation_filenames, validation_labels, transform=val_preprocessing_fn, 
                                 process='validation')
 validation_loader = DataLoader(validation_dataloader, batch_size=hyperparameters.batch_size, 
-                                    num_workers=hyperparameters.num_workers, pin_memory=True, shuffle=False)
+                                    num_workers=hyperparameters.num_workers, pin_memory=True, shuffle=True)
 
 def save_model(state):
+    #save model to model_dir
     model_dir = './models/'
     ckpt_name = 'model.ckpt-%.3d%s' % (state['epoch'], '.pth.tar')
     ckpt_dir = os.path.join(model_dir, ckpt_name)
@@ -54,9 +71,9 @@ def save_model(state):
     if len(ckpt_list) > 5:
         ckpt_list.sort(key=lambda x:int(x[-11:-9]))
         os.remove(ckpt_list[0])
-
-def eval_model():
     
+def eval_model():
+    #evaluates accuracy per class of model
     class_correct = list(0. for i in range(10))
     class_total = list(0. for i in range(10))
     acc_per_class = list(0. for i in range(hyperparameters.num_classes))
@@ -90,10 +107,9 @@ def eval_model():
     return acc_per_class
     
 
-
-for epoch in range(1, hyperparameters.max_epochs+1):
+#training epoch
+for epoch in range(epoch, hyperparameters.max_epochs+1):
     running_loss = 0.0
-    #epoch_loss = []
     acc_history = []
     for batch_i, (data, label) in tqdm(enumerate(train_loader), total = len(train_loader)):
         data, label = data.cuda(), label.cuda()
@@ -105,11 +121,9 @@ for epoch in range(1, hyperparameters.max_epochs+1):
         optimizer.step()
 
         running_loss += loss.item()
-        #epoch_loss.append
 
-        #eval per 528 batchs, 3 times per epoch
+        #calculate batch loss per 528 batchs, 3 times per epoch
         if batch_i % 528 == 527:
-            acc_history.append(eval_model())
             print('epoch %d, batch_num %3d loss: %.3f' %
             (epoch, batch_i + 1, running_loss / 528))
             running_loss = 0.0
@@ -117,7 +131,7 @@ for epoch in range(1, hyperparameters.max_epochs+1):
     scheduler.step()
 
     if (epoch-1) % hyperparameters.num_epochs_per_eval == 0 and epoch > 1:
-        eval_model()
+        acc_history.append(eval_model())
     
     if (epoch-1) % hyperparameters.save_epochs == 0 and epoch > 1:
         save_model(
@@ -128,13 +142,8 @@ for epoch in range(1, hyperparameters.max_epochs+1):
             'acc_history':acc_history
             }
         )
-
-    
     #print(f'Epoch {epoch}, train loss: {np.mean(train_loss):.4f}')
 
-#TODO: recall metric (per class), save model and acc metric, add pnasnet model, save acc_history_file when saving model
-
-acc_history_file = open('./models/acc_history.txt', 'wb')
-pickle.dump(acc_history, acc_history_file)
+#TODO: confusion matrix, add pnasnet model, load checkpoint if exisits, test_data inference
 
 print('Optmization Done.')
