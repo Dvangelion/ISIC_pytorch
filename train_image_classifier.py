@@ -1,11 +1,11 @@
 import os
 import glob
-import pickle
 import torch
 import numpy as np
 import torch.optim as optim
 import torch.nn as nn
 from tqdm import tqdm
+from sklearn.metrics import confusion_matrix
 from torch.optim import lr_scheduler
 from torch.utils.data import DataLoader
 from dataset.preprocessing import preprocess_fn
@@ -16,7 +16,7 @@ from configs import hyperparameters
 
 
 
-network_fn, resume = nets_factory.get_network_function('pnasnet')
+network_fn, resume = nets_factory.get_network_function('senet154')
 epoch = 1
 
 #load exisiting checkpoint
@@ -36,14 +36,15 @@ network_fn = network_fn.cuda()
 optimizer = optim.Adam(network_fn.parameters(), lr=hyperparameters.initial_learning_rate)
 if resume:
     optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
-
+    
 
 criterion = nn.CrossEntropyLoss(weight=torch.tensor([1.0000, 0.3512, 1.3608, 5.2157, 
                                 1.7233, 18.9205, 17.8735, 7.2006],device='cuda'))
 
 #try cyclic LR in PNASnet?
-#scheduler = lr_scheduler.StepLR(optimizer, step_size=hyperparameters.num_epochs_per_decay, gamma=hyperparameters.gamma)
-scheduler = lr_scheduler.CyclicLR(optimizer, base_lr=0., max_lr=0.01,step_size_up=797)
+scheduler = lr_scheduler.StepLR(optimizer, step_size=hyperparameters.num_epochs_per_decay, gamma=hyperparameters.learning_rate_decay)
+#scheduler = lr_scheduler.MultiStepLR(optimizer, milestones=[50,75,100], gamma=0.2)
+#scheduler = lr_scheduler.CyclicLR(optimizer, base_lr=0., max_lr=0.01,step_size_up=797)
 
 photo_filenames, photo_labels, class_names = get_filenames_and_labels()
 validation_filenames, validation_labels = get_validation_filenames_and_labels(hyperparameters.validation_per_class)
@@ -73,17 +74,24 @@ def save_model(state):
         ckpt_list.sort(key=lambda x:int(x[-11:-9]))
         os.remove(ckpt_list[0])
     
-def eval_model():
+def eval_model(model):
+
+    #model.eval()
     #evaluates accuracy per class of model
     class_correct = list(0. for i in range(10))
     class_total = list(0. for i in range(10))
     acc_per_class = list(0. for i in range(hyperparameters.num_classes))
+    prediction_list = []
+    label_list = []
 
     with torch.no_grad():
         for (data, labels) in validation_loader:
             data, labels = data.cuda(), labels.cuda()
-            outputs = network_fn(data)
+            outputs = model(data)
             predicted = torch.argmax(outputs.data, dim=1)
+
+            prediction_list.extend(predicted.cpu().tolist())
+            label_list.extend(labels.cpu().tolist())
             #reduced_label = torch.argmax(label, dim=1)
             correct = (predicted == labels)
             for i in range(labels.size(0)):
@@ -105,6 +113,12 @@ def eval_model():
     mean_acc = np.mean(acc_per_class)
     print('Mean accuracy: %.3f %%' % mean_acc)
 
+    conf = confusion_matrix(prediction_list, label_list)
+    wacc = conf.diagonal()/conf.sum(axis=1)
+    mean_wacc = np.mean(wacc)
+    
+    print('Weighted Mean ACC: %.3f %%' % mean_wacc)
+
     return acc_per_class
     
 
@@ -121,20 +135,25 @@ for epoch in range(epoch, hyperparameters.max_epochs+1):
         loss.backward()
         optimizer.step()
         #cyclical_LR
-        scheduler.step()
+        #scheduler.step()
         running_loss += loss.item()
 
         #calculate batch loss per 528 batchs, 3 times per epoch
         if batch_i % 528 == 527:
+        #if batch_i % 211 == 210:
             print('epoch %d, batch_num %3d loss: %.3f' %
             (epoch, batch_i + 1, running_loss / 528))
             running_loss = 0.0
+
+            for param_group in optimizer.param_groups:
+                print('current learning rate: ', param_group['lr'])
     
     #step_LR        
-    #scheduler.step()
+    scheduler.step()
 
     if (epoch-1) % hyperparameters.num_epochs_per_eval == 0 and epoch > 1:
-        acc_history.append(eval_model())
+        acc_history.append(eval_model(network_fn))
+        
     
     if (epoch-1) % hyperparameters.save_epochs == 0 and epoch > 1:
         save_model(
