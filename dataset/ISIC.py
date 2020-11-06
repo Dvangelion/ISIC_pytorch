@@ -3,7 +3,8 @@ import cv2
 import glob
 import pandas as pd
 import numpy as np
-from torch.utils.data import Dataset
+from torch.utils.data import Dataset, DataLoader, ConcatDataset
+from torchvision import transforms
 from PIL import Image
 
 
@@ -11,34 +12,84 @@ _NUM_VALIDATION = 2553
 _DATA_FILE = './dataset/ISIC_2019_Training_GroundTruth.csv'
 _DATA_DIRECTORY = './dataset/Preprocessed_ISIC_2019_Training_Input'
 
+data_transforms = {
+    'train': transforms.Compose([
+        transforms.RandomResizedCrop(224),
+        transforms.RandomHorizontalFlip(),
+        transforms.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4, hue=0),
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[0.6337, 0.6060, 0.5936],
+                            std=[0.1393, 0.1832, 0.1970]))
+    ]),
+    
+    'validation': transforms.Compose([
+        transforms.Resize(256),
+        transforms.CenterCrop(224),
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[0.6337, 0.6060, 0.5936],
+                            std=[0.1393, 0.1832, 0.1970]))
+    ]),
+
+    'test': transforms.Compose([
+        transforms.Resize(256),
+        transforms.CenterCrop(224),
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[0.6337, 0.6060, 0.5936],
+                            std=[0.1393, 0.1832, 0.1970]))
+    ])
+}
+
+
 class ISICDataLoader(Dataset):
     def __init__(self, photo_filenames, photo_labels, process=None, transform=None):
-        self.train_photo_filenames = photo_filenames
-        self.train_labels = photo_labels
-        self.validation_photo_filenames = photo_filenames[:_NUM_VALIDATION]
-        self.validation_labels = photo_labels[:_NUM_VALIDATION]
+        self.photo_filenames = photo_filenames
+        self.labels = photo_labels
+        #self.validation_photo_filenames = photo_filenames[:_NUM_VALIDATION]
+        #self.validation_labels = photo_labels[:_NUM_VALIDATION]
         self.process = process
         self.transform = transform
 
     def __len__(self):
-        if self.process == 'train':
-            return len(self.train_labels)
-        elif self.process == 'validation':
-            return len(self.validation_labels)
-    
+        # if self.process == 'train':
+        #     return len(self.train_labels)
+        # elif self.process == 'validation':
+        #     return len(self.validation_labels)
+        return len(self.photo_filenames)
+
     def __getitem__(self, idx):
-        if self.process == 'train':
-            img_name = self.train_photo_filenames[idx]
-            label = self.train_labels[idx]
+        if self.process == 'train' or self.process == 'validation':
+            img_name = self.photo_filenames[idx]
+            label = self.labels[idx]
         
-        elif self.process == 'validation':
-            img_name = self.validation_photo_filenames[idx]
-            label = self.validation_labels[idx]
-        
+        # elif self.process == 'validation':
+        #     img_name = self.validation_photo_filenames[idx]
+        #     label = self.validation_labels[idx]
+
+        elif self.process == 'test':
+            img_name = self.photo_filenames[idx]
+            img = Image.open(img_name).convert('RGB')
+            img = self.transform(img)
+
+            return img, img_name
+
         img = Image.open(img_name).convert('RGB')
         img = self.transform(img)
 
         return img, label
+
+
+def load_data(dataset, phase, batch_size, num_workers=4, shuffle=True):
+
+    transforms = data_transforms[phase]
+
+    print('Use data transformation:', transform)
+
+    
+    return DataLoader(dataset=)
+
+
+    
+
 
 def get_filenames_and_labels():
     data = pd.read_csv(_DATA_FILE)
@@ -54,15 +105,17 @@ def get_filenames_and_labels():
     DF = data['DF'].to_numpy()
     VASC = data['VASC'].to_numpy()
     SCC = data['SCC'].to_numpy()
-    #UNK = data['UNK'].to_numpy()
+    UNK = data['UNK'].to_numpy()
     
     #removed UNK class
     class_names = ['MEL', 'NV', 'BCC', 'AK', 'BKL', 'DF', 'VASC', 'SCC']
 
     photo_labels = np.vstack((MEL, NV, BCC, AK, BKL, DF, VASC, SCC))
     photo_labels = photo_labels.transpose()
+    
     photo_labels = np.argmax(photo_labels, axis=1)
-
+    
+    print(photo_labels)
     for filename in filenames_list:
         filename += '.jpg'
         path = os.path.join(_DATA_DIRECTORY, filename)
@@ -70,8 +123,13 @@ def get_filenames_and_labels():
     
     return photo_filenames, photo_labels, class_names
 
+get_filenames_and_labels()
+
+
+
 
 def get_validation_filenames_and_labels(num_per_class):
+    #get same number of photos per class, given by num_per_class
     data = pd.read_csv(_DATA_FILE)
     filenames_list = data['image'].tolist()
     photo_filenames = []
@@ -89,6 +147,7 @@ def get_validation_filenames_and_labels(num_per_class):
     class_names = ['MEL', 'NV', 'BCC', 'AK', 'BKL', 'DF', 'VASC', 'SCC']
 
     photo_labels = np.vstack((MEL, NV, BCC, AK, BKL, DF, VASC, SCC))
+
     photo_labels = photo_labels.transpose()
     reduced_labels = np.argmax(photo_labels, axis=1)
 

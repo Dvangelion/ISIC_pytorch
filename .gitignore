@@ -1,3 +1,4 @@
 dataset/Preprocessed_ISIC_2019_Training_Input
-models/
+dataset/ISIC_2019_Test_Input
+dataset/Preprocessed_ISIC_2019_Test_Input
 __pycache__/

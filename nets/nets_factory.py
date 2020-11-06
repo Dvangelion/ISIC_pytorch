@@ -30,7 +30,7 @@ def get_network_function(network_name):
     else:
         print('Initializing model from imagenet')
         network_fn = network_fn_map[network_name](num_classes=1000, pretrained='imagenet')
-        #network_fn.last_linear = nn.Linear(network_fn.last_linear.in_features, hyperparameters.num_classes)
-        network_fn.classifier = nn.Linear(network_fn.classifier.in_features, hyperparameters.num_classes)
+        network_fn.last_linear = nn.Linear(network_fn.last_linear.in_features, hyperparameters.num_classes)
+        #network_fn.classifier = nn.Linear(network_fn.classifier.in_features, hyperparameters.num_classes)
         return network_fn, resume
     

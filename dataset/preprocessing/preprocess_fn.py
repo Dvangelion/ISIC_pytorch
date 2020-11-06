@@ -1,15 +1,17 @@
 from torchvision import transforms
 
+#PNASnet:(441,441) -> (331,331)
+#Other:(300,300) -> (224,224)
 
 def senet_preprocessing(is_training=True):
 
     train_transformation = transforms.Compose([
-        transforms.Resize((300,300)),
+        transforms.Resize((441,441)),
         transforms.RandomHorizontalFlip(p=0.5),
         transforms.RandomVerticalFlip(p=0.5),
         transforms.ColorJitter(),
         transforms.RandomAffine(degrees=30),
-        transforms.RandomCrop((224,224)),
+        transforms.RandomCrop((331,331)),
         transforms.ToTensor(),
         transforms.Normalize(mean=[0.6337, 0.6060, 0.5936],
                             std=[0.1393, 0.1832, 0.1970])
@@ -17,7 +19,7 @@ def senet_preprocessing(is_training=True):
 
 
     validation_transformation = transforms.Compose([
-        transforms.Resize((224,224)),
+        transforms.Resize((331,331)),
         transforms.ToTensor(),
         transforms.Normalize(mean=[0.6337, 0.6060, 0.5936],
                             std=[0.1393, 0.1832, 0.1970])
