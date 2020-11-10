@@ -2,8 +2,8 @@
 config = {}
 
 training_opt = {}
-training_opt['dataset'] = 'Places_LT'
-training_opt['log_dir'] = './logs/Places_LT/meta_embedding'
+training_opt['dataset'] = 'ISIC'
+training_opt['log_dir'] = './logs/ISIC/meta_embedding'
 training_opt['num_classes'] = 365
 training_opt['batch_size'] = 128
 training_opt['num_workers'] = 4

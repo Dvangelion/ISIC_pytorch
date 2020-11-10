@@ -19,15 +19,15 @@ data_transforms = {
         transforms.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4, hue=0),
         transforms.ToTensor(),
         transforms.Normalize(mean=[0.6337, 0.6060, 0.5936],
-                            std=[0.1393, 0.1832, 0.1970]))
+                            std=[0.1393, 0.1832, 0.1970])
     ]),
     
-    'validation': transforms.Compose([
+    'val': transforms.Compose([
         transforms.Resize(256),
         transforms.CenterCrop(224),
         transforms.ToTensor(),
         transforms.Normalize(mean=[0.6337, 0.6060, 0.5936],
-                            std=[0.1393, 0.1832, 0.1970]))
+                            std=[0.1393, 0.1832, 0.1970])
     ]),
 
     'test': transforms.Compose([
@@ -35,25 +35,51 @@ data_transforms = {
         transforms.CenterCrop(224),
         transforms.ToTensor(),
         transforms.Normalize(mean=[0.6337, 0.6060, 0.5936],
-                            std=[0.1393, 0.1832, 0.1970]))
+                            std=[0.1393, 0.1832, 0.1970])
     ])
 }
 
 
-class ISICDataLoader(Dataset):
-    def __init__(self, photo_filenames, photo_labels, process=None, transform=None):
-        self.photo_filenames = photo_filenames
-        self.labels = photo_labels
-        #self.validation_photo_filenames = photo_filenames[:_NUM_VALIDATION]
-        #self.validation_labels = photo_labels[:_NUM_VALIDATION]
+
+class ISICDataset(Dataset):
+    def __init__(self, data_file, process=None, transform=None):
+        self.data_directory = './dataset/Preprocessed_ISIC_2019_Training_Input'
+        self.photo_filenames, self.labels = self.get_filenames_and_labels(data_file)
         self.process = process
         self.transform = transform
 
+    def get_filenames_and_labels(self, csv_data_file):
+        data = pd.read_csv(csv_data_file)
+        filenames_list = data['image'].tolist()
+        photo_filenames = []
+        photo_labels = []
+
+        MEL = data['MEL'].to_numpy()
+        NV = data['NV'].to_numpy()
+        BCC = data['BCC'].to_numpy()
+        AK = data['AK'].to_numpy()
+        BKL = data['BKL'].to_numpy()
+        DF = data['DF'].to_numpy()
+        VASC = data['VASC'].to_numpy()
+        SCC = data['SCC'].to_numpy()
+        UNK = data['UNK'].to_numpy()
+        
+        #removed UNK class
+        class_names = ['MEL', 'NV', 'BCC', 'AK', 'BKL', 'DF', 'VASC', 'SCC']
+
+        photo_labels = np.vstack((MEL, NV, BCC, AK, BKL, DF, VASC, SCC))
+        photo_labels = photo_labels.transpose()
+        
+        photo_labels = np.argmax(photo_labels, axis=1)
+        
+        for filename in filenames_list:
+            filename += '.jpg'
+            path = os.path.join(self.data_directory, filename)
+            photo_filenames.append(path)
+        
+        return photo_filenames, photo_labels
+
     def __len__(self):
-        # if self.process == 'train':
-        #     return len(self.train_labels)
-        # elif self.process == 'validation':
-        #     return len(self.validation_labels)
         return len(self.photo_filenames)
 
     def __getitem__(self, idx):
@@ -78,53 +104,22 @@ class ISICDataLoader(Dataset):
         return img, label
 
 
-def load_data(dataset, phase, batch_size, num_workers=4, shuffle=True):
+def load_data(dataset='ISIC', phase='train', batch_size=32, num_workers=4, shuffle=True):
 
-    transforms = data_transforms[phase]
+    transform = data_transforms[phase]
 
-    print('Use data transformation:', transform)
+    print('Use data transformation:', transforms)
 
+    if dataset not in ['ISIC', 'MedMNIST']:
+        raise ValueError('Dataset not implemented')
+
+    if dataset == 'ISIC':
+        _dataset = ISICDataset(_DATA_FILE, transform=transform)
+    elif dataset == 'MedMNIST':
+        _dataset = 'TO BE IMPLEMENTED'
     
-    return DataLoader(dataset=)
-
-
-    
-
-
-def get_filenames_and_labels():
-    data = pd.read_csv(_DATA_FILE)
-    filenames_list = data['image'].tolist()
-    photo_filenames = []
-    photo_labels = []
-
-    MEL = data['MEL'].to_numpy()
-    NV = data['NV'].to_numpy()
-    BCC = data['BCC'].to_numpy()
-    AK = data['AK'].to_numpy()
-    BKL = data['BKL'].to_numpy()
-    DF = data['DF'].to_numpy()
-    VASC = data['VASC'].to_numpy()
-    SCC = data['SCC'].to_numpy()
-    UNK = data['UNK'].to_numpy()
-    
-    #removed UNK class
-    class_names = ['MEL', 'NV', 'BCC', 'AK', 'BKL', 'DF', 'VASC', 'SCC']
-
-    photo_labels = np.vstack((MEL, NV, BCC, AK, BKL, DF, VASC, SCC))
-    photo_labels = photo_labels.transpose()
-    
-    photo_labels = np.argmax(photo_labels, axis=1)
-    
-    print(photo_labels)
-    for filename in filenames_list:
-        filename += '.jpg'
-        path = os.path.join(_DATA_DIRECTORY, filename)
-        photo_filenames.append(path)
-    
-    return photo_filenames, photo_labels, class_names
-
-get_filenames_and_labels()
-
+    return DataLoader(dataset=_dataset, batch_size=batch_size, shuffle=shuffle,
+                        num_workers=num_workers)
 
 
 

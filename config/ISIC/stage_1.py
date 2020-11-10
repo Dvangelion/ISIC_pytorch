@@ -2,8 +2,8 @@
 config = {}
 
 training_opt = {}
-training_opt['dataset'] = 'Places_LT'
-training_opt['log_dir'] = './logs/Places_LT/stage1'
+training_opt['dataset'] = 'ISIC'
+training_opt['log_dir'] = './logs/ISIC/stage1'
 training_opt['num_classes'] = 365
 training_opt['batch_size'] = 128
 training_opt['num_workers'] = 4
@@ -19,14 +19,15 @@ networks = {}
 feature_param = {'use_modulatedatt': False, 'use_fc': True, 'dropout': None,
                  'stage1_weights': False, 'dataset': training_opt['dataset'], 'caffe': True}
 feature_optim_param = {'lr': 0.001, 'momentum': 0.9, 'weight_decay': 0.0005}
-networks['feat_model'] = {'def_file': './models/ResNet152Feature.py',
+networks['feat_model'] = {'def_file': './nets/ResNet10Feature.py',
                           'params': feature_param,
                           'optim_params': feature_optim_param,
                           'fix': False}
+
 classifier_param = {'in_dim': training_opt['feature_dim'], 'num_classes': training_opt['num_classes'],
                     'stage1_weights': False, 'dataset': training_opt['dataset']}
 classifier_optim_param = {'lr': 0.1, 'momentum': 0.9, 'weight_decay': 0.0005}
-networks['classifier'] = {'def_file': './models/DotProductClassifier.py',
+networks['classifier'] = {'def_file': './nets/DotProductClassifier.py',
                           'params': classifier_param,
                           'optim_params': classifier_optim_param}
 config['networks'] = networks

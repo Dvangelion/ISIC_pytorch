@@ -1,7 +1,7 @@
 import os
 import argparse
 import pprint
-from data import dataloader
+from dataset import dataloader
 from run_networks import model
 import warnings
 from utils import source_import
@@ -13,7 +13,7 @@ data_root = {'ISIC': './dataset/Preprocessed_ISIC_2019_Training_Input/',
              'Places': '/home/public/dataset/Places365'}
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--config', default='./config/ISIC/Stage_1.py', type=str)
+parser.add_argument('--config', default='./config/ISIC/stage_1.py', type=str)
 parser.add_argument('--test', default=False, action='store_true')
 parser.add_argument('--test_open', default=False, action='store_true')
 parser.add_argument('--output_logits', default=False)
@@ -46,9 +46,8 @@ if not test_mode:
     else:
         sampler_dic = None
 
-    data = {x: dataloader.load_data(data_root=data_root[dataset.rstrip('_LT')], dataset=dataset, phase=x, 
+    data = {x: dataloader.load_data(dataset=dataset, phase=x, 
                                     batch_size=training_opt['batch_size'],
-                                    sampler_dic=sampler_dic,
                                     num_workers=training_opt['num_workers'])
             for x in (['train', 'val', 'train_plain'] if relatin_opt['init_centroids'] else ['train', 'val'])}
 
