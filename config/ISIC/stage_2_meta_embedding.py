@@ -4,16 +4,15 @@ config = {}
 training_opt = {}
 training_opt['dataset'] = 'ISIC'
 training_opt['log_dir'] = './logs/ISIC/meta_embedding'
-training_opt['num_classes'] = 365
+training_opt['num_classes'] = 8
 training_opt['batch_size'] = 128
 training_opt['num_workers'] = 4
 training_opt['num_epochs'] = 30
 training_opt['display_step'] = 10
 training_opt['feature_dim'] = 512
 training_opt['open_threshold'] = 0.1
-training_opt['sampler'] = {'type': 'ClassAwareSampler', 'def_file': './data/ClassAwareSampler.py',
-                           'num_samples_cls': 4}
-training_opt['scheduler_params'] = {'step_size':10, 'gamma':0.1}
+training_opt['sampler'] = None
+training_opt['scheduler_params'] = {'step_size': 10, 'gamma':0.1}
 config['training_opt'] = training_opt
 
 networks = {}

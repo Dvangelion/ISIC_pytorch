@@ -1,4 +1,5 @@
-dataset/Preprocessed_ISIC_2019_Training_Input
-dataset/ISIC_2019_Test_Input
-dataset/Preprocessed_ISIC_2019_Test_Input
+dataset/ISIC/ISIC_2019_Training_Input
+dataset/ISIC/ISIC_2019_Test_Input
+dataset/ISIC/Preprocessed_ISIC_2019_Training_Input
+dataset/ISIC/Preprocessed_ISIC_2019_Test_Input
 __pycache__/

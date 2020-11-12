@@ -1,15 +1,33 @@
 import pandas as pd
+import argparse
 import glob
 import numpy
 import cv2
 import os
 
+from pandas.io import parsers
+
+parser = argparse.ArgumentParser()
+parser.add_argument('--phase', type=str)
+
+args = parser.parse_args
+phase = args.phase
 
 # The data directory store test images
-_DATA_DIRECTORY = 'ISIC_2019_Test_Input'
+data_directory_dict = {
+    'train': 'ISIC_2019_Training_Input',
+    'test': 'ISIC_2019_Test_Input'
+}
+# TRAIN_DATA_DIRECTORY = 'ISIC_2019_Training_Input'
+# TEST_DATA_DIRECTORY = 'ISIC_2019_Test_Input'
 
 # The data directory to store preprocessed images
-_SAVE_DIRECTORY = 'Preprocessed_ISIC_2019_Test_Input'
+save_directory_dict = {
+    'train': 'Preprocessed_ISIC_2019_Training_Input',
+    'test': 'Preprocessed_ISIC_2019_Test_Input'
+}
+# TRAIN_SAVE_DIRECTORY = 'Preprocessed_ISIC_2019_Training_Input'
+# TEST_SAVE_DIRECTORY = 'Preprocessed_ISIC_2019_Test_Input'
 
 def color_constancy(img, power=6, gamma=None):
     """
@@ -41,19 +59,38 @@ def color_constancy(img, power=6, gamma=None):
     
     return img.astype(img_dtype)
 
-def get_filenames_and_save_path():
-    photo_filenames = glob.glob(os.path.join(_DATA_DIRECTORY, '*.jpg'))
+def cropping(img):
+    img_grey = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
+    ret1,th1 = cv2.threshold(img_grey,35,255,cv2.THRESH_BINARY)
+
+    contours,hierarchy = cv2.findContours(th1, 1, 2)
+    cnt = contours[3]
+    x,y,w,h = cv2.boundingRect(cnt)
+
+    if w == 0 and h == 0:
+        return img
+    
+    else:
+        cropped_img = img[y:y+h-1,x:x+w-1,:]
+        return cropped_img
+
+def get_filenames_and_save_path(phase):
+    
+    data_directory = data_directory_dict[phase]
+    save_directory = save_directory_dict[phase]
+
+    photo_filenames = glob.glob(os.path.join(data_directory, '*.jpg'))
     save_paths = []
 
     for filename in photo_filenames:
         photo_name = filename.split('/')[1]
-        save_path = os.path.join(_SAVE_DIRECTORY, photo_name)
+        save_path = os.path.join(save_directory, photo_name)
         save_paths.append(save_path)
     return photo_filenames, save_paths
 
 
-def preprocess():
-    photo_filenames, save_paths = get_filenames_and_save_path()
+def preprocess(phase):
+    photo_filenames, save_paths = get_filenames_and_save_path(phase)
     assert(len(photo_filenames) == len(save_paths))
 
     
@@ -66,5 +103,5 @@ def preprocess():
 
 
 if __name__ == '__main__':
-    preprocess()
+    preprocess(phase)
 

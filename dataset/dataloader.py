@@ -9,8 +9,7 @@ from PIL import Image
 
 
 _NUM_VALIDATION = 2553
-_DATA_FILE = './dataset/ISIC_2019_Training_GroundTruth.csv'
-_DATA_DIRECTORY = './dataset/Preprocessed_ISIC_2019_Training_Input'
+_ISIC_DATA_FILE = './dataset/ISIC/ISIC_2019_Training_GroundTruth.csv'
 
 data_transforms = {
     'train': transforms.Compose([
@@ -43,7 +42,7 @@ data_transforms = {
 
 class ISICDataset(Dataset):
     def __init__(self, data_file, process=None, transform=None):
-        self.data_directory = './dataset/Preprocessed_ISIC_2019_Training_Input'
+        self.data_directory = './dataset/ISIC/Preprocessed_ISIC_2019_Training_Input'
         self.photo_filenames, self.labels = self.get_filenames_and_labels(data_file)
         self.process = process
         self.transform = transform
@@ -82,26 +81,32 @@ class ISICDataset(Dataset):
     def __len__(self):
         return len(self.photo_filenames)
 
-    def __getitem__(self, idx):
-        if self.process == 'train' or self.process == 'validation':
-            img_name = self.photo_filenames[idx]
-            label = self.labels[idx]
+    def __getitem__(self, index):
+        # if self.process == 'train' or self.process == 'validation':
+        #     img_name = self.photo_filenames[idx]
+        #     label = self.labels[idx]
         
         # elif self.process == 'validation':
         #     img_name = self.validation_photo_filenames[idx]
         #     label = self.validation_labels[idx]
 
-        elif self.process == 'test':
-            img_name = self.photo_filenames[idx]
-            img = Image.open(img_name).convert('RGB')
-            img = self.transform(img)
+        # elif self.process == 'test':
+        #     img_name = self.photo_filenames[idx]
+        #     img = Image.open(img_name).convert('RGB')
+        #     img = self.transform(img)
 
-            return img, img_name
+        #     return img, img_name
 
+        img_name = self.photo_filenames[index]
         img = Image.open(img_name).convert('RGB')
         img = self.transform(img)
 
-        return img, label
+        
+        label = self.labels[index]
+
+
+
+        return img, label, img_name
 
 
 def load_data(dataset='ISIC', phase='train', batch_size=32, num_workers=4, shuffle=True):
@@ -114,7 +119,7 @@ def load_data(dataset='ISIC', phase='train', batch_size=32, num_workers=4, shuff
         raise ValueError('Dataset not implemented')
 
     if dataset == 'ISIC':
-        _dataset = ISICDataset(_DATA_FILE, transform=transform)
+        _dataset = ISICDataset(_ISIC_DATA_FILE, transform=transform)
     elif dataset == 'MedMNIST':
         _dataset = 'TO BE IMPLEMENTED'
     
