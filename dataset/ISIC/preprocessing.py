@@ -1,7 +1,7 @@
 import pandas as pd
 import argparse
 import glob
-import numpy
+import numpy 
 import cv2
 import os
 
@@ -10,7 +10,7 @@ from pandas.io import parsers
 parser = argparse.ArgumentParser()
 parser.add_argument('--phase', type=str)
 
-args = parser.parse_args
+args = parser.parse_args()
 phase = args.phase
 
 # The data directory store test images
@@ -60,19 +60,24 @@ def color_constancy(img, power=6, gamma=None):
     return img.astype(img_dtype)
 
 def cropping(img):
+    #remove white boarder if exists
+    sample_point = img[0,0,:]
+    if numpy.any(sample_point > 217):
+        img = img[1:-1,1:-1,:]
     img_grey = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
     ret1,th1 = cv2.threshold(img_grey,35,255,cv2.THRESH_BINARY)
 
-    contours,hierarchy = cv2.findContours(th1, 1, 2)
-    cnt = contours[3]
-    x,y,w,h = cv2.boundingRect(cnt)
+    contours, hierarchy = cv2.findContours(th1, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
 
-    if w == 0 and h == 0:
-        return img
-    
-    else:
-        cropped_img = img[y:y+h-1,x:x+w-1,:]
-        return cropped_img
+    for contour in contours:
+        (x,y,w,h) = cv2.boundingRect(contour)
+        if w <= 200 or h <= 200:
+            continue
+        else:
+            cropped_img = img[y:y+h, x:x+w,:]
+            return cropped_img
+        
+    return img
 
 def get_filenames_and_save_path(phase):
     
@@ -98,7 +103,8 @@ def preprocess(phase):
         if i % 2000 == 0:
             print('processed %d images' % i)
         photo = cv2.imread(photo_filenames[i])
-        preprocessed_photo = color_constancy(photo)
+        cropped_photo = cropping(photo)
+        preprocessed_photo = color_constancy(cropped_photo)
         cv2.imwrite(save_paths[i], preprocessed_photo)
 
 
